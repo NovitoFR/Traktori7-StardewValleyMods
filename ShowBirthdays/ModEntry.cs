@@ -40,7 +40,6 @@ namespace ShowBirthdays
 		{
             // Initialize the helper
             bdHelper = new BirthdayHelper(Monitor, Helper.ModRegistry, Helper.GameContent);
-            billboardTexture = Game1.temporaryContent.Load<Texture2D>("LooseSprites\\Billboard");
 
             helper.Events.Content.AssetRequested += OnAssetRequested;
 			helper.Events.Display.MenuChanged += OnMenuChanged;
@@ -118,15 +117,22 @@ namespace ShowBirthdays
 		{
 			// Load the icon from the mod folder
 			iconTexture = Helper.GameContent.Load<Texture2D>(assetName);
+            billboardTexture = Game1.temporaryContent.Load<Texture2D>("LooseSprites\\Billboard");
 
-			// Check if the loading succeeded
-			if (iconTexture is null)
+            // Check if the loading succeeded
+            if (iconTexture is null)
 			{
 				Monitor.Log("Failed loading the icon " + assetName, LogLevel.Error);
 			}
 
-			// Refresh the config
-			config = Helper.ReadConfig<ModConfig>();
+            // Check if the loading succeeded
+            if (billboardTexture is null)
+            {
+                Monitor.Log("Failed loading the billboard texture", LogLevel.Error);
+            }
+
+            // Refresh the config
+            config = Helper.ReadConfig<ModConfig>();
 
 			// Update the cycle type
 			ChangeCycleType(config.cycleType);
@@ -155,76 +161,6 @@ namespace ShowBirthdays
 			// NOTE: Remember that i goes from 1 to 28, so substract 1 from it to use as the index!
 			for (int i = 1; i <= days.Count; i++)
 			{
-				// Build the hover text from festival, birthdays and wedding if applicable
-				string newHoverText = string.Empty;
-
-				// Add the festival text if needed
-				// NOTE: Adding the festival name to the hover text makes the billboard.draw think it's someone's birthday and tries to draw
-				// a null texture. CalendarDay.name contains the festival name and causes the animated flag or the stars to draw.
-				// Adding the festival to the hovertext bypasses using the label as the hovertext and would allow a festival + birthday combo.
-				// How to handle potential birthday + festival combos? Don't add the festival as a hover text if there's no birthday?
-				// Would need a custom implementation for the graphic if they overlap. Which isn't actually a bad idea.
-				if (Utility.isFestivalDay(i, Game1.season))
-				{
-					// Festival name hover text from base game
-					newHoverText = Game1.temporaryContent.Load<Dictionary<string, string>>($"Data\\Festivals\\{Game1.currentSeason}{i}")["name"];
-				}
-				else if (Game1.season == Season.Winter && i >= 15 && i <= 17)
-				{
-					// Night Market hover text from base game
-					newHoverText = Game1.content.LoadString("Strings\\UI:Billboard_NightMarket");
-				}
-
-				// Get the list of all NPCs with the birthday and add them to the hover text
-				List<NPC>? listOfNPCs = bdHelper.GetNpcs(Game1.season, i);
-
-				if (listOfNPCs is not null)
-				{
-					for (int j = 0; j < listOfNPCs.Count; j++)
-					{
-						if (newHoverText.Length > 0)
-						{
-							newHoverText += Environment.NewLine;
-						}
-
-						NPC n = listOfNPCs[j];
-						// Build the hover text just like in the base game. I'm not touching that.
-						// Old line before getting rid of Linq:
-						// newHoverText += (n.displayName.Last() != 's' && (LocalizedContentManager.CurrentLanguageCode != LocalizedContentManager.LanguageCode.de || (n.displayName.Last() != 'x' && n.displayName.Last() != 'ß' && n.displayName.Last() != 'z'))) ? Game1.content.LoadString("Strings\\UI:Billboard_Birthday", n.displayName) : Game1.content.LoadString("Strings\\UI:Billboard_SBirthday", n.displayName);
-
-						char last = n.displayName[^1];
-
-						newHoverText +=
-							(last == 's'
-							|| (LocalizedContentManager.CurrentLanguageCode == LocalizedContentManager.LanguageCode.de && (last == 'x' || last == 'ß' || last == 'z')))
-							? Game1.content.LoadString("Strings\\UI:Billboard_SBirthday", n.displayName) : Game1.content.LoadString("Strings\\UI:Billboard_Birthday", n.displayName);
-					}
-				}
-				else
-				{
-                    // If there was no birthday, reset the hover text incase a festival name was added
-                    newHoverText = string.Empty;
-				}
-
-				//// Get a refrence to the list of weddings
-				//IReflectedField<Dictionary<ClickableTextureComponent, List<string>>> weddings = Helper.Reflection.GetField<Dictionary<ClickableTextureComponent, List<string>>>(billboard, "_upcomingWeddings");
-
-				//// Wedding text from base game
-				//if (weddings.GetValue().ContainsKey(days[i - 1]))
-				//{
-				//	for (int j = 0; j < weddings.GetValue().Count / 2; j++)
-				//	{
-				//		if (newHoverText.Length > 0)
-				//		{
-				//			newHoverText += Environment.NewLine;
-				//		}
-
-				//		newHoverText += Game1.content.LoadString("Strings\\UI:Calendar_Wedding", weddings.GetValue()[days[i - 1]][j * 2], weddings.GetValue()[days[i - 1]][j * 2 + 1]);
-				//	}
-				//}
-
-				days[i - 1].hoverText = newHoverText.Trim();
-
 				// Add the NPC textures
 				if (list.Contains(i))
 				{
@@ -332,16 +268,20 @@ namespace ShowBirthdays
 			{
                 ClickableTextureComponent clickableTextureComponent = days[listOfDays[i] - 1];
 
+				// Redraw the day background
                 e.SpriteBatch.Draw(Game1.fadeToBlackRect, clickableTextureComponent.bounds, Color.Black);
                 e.SpriteBatch.Draw(billboardTexture, clickableTextureComponent.bounds, new Rectangle(38 + (listOfDays[i] - 1) % 7 * 32, 248 + (listOfDays[i] - 1) / 7 * 32, 31, 31), Color.White);
 
+				// Redraw the day content
                 if (billboard.calendarDayData.TryGetValue(clickableTextureComponent.myID, out var value))
                 {
+                    // Subsitutes the texture from calendarDayData with the one we stored in days
                     if (days[listOfDays[i] - 1].texture != null && value.Texture != null)
                     {
                         e.SpriteBatch.Draw(days[listOfDays[i] - 1].texture, new Vector2(clickableTextureComponent.bounds.X + 48, clickableTextureComponent.bounds.Y + 28), value.TextureSourceRect, Color.White, 0f, Vector2.Zero, 4f, SpriteEffects.None, 1f);
                     }
 
+					// From here on down to the icon texture drawing, same as default behavior
                     if (value.Type.HasFlag(BillboardEventType.PassiveFestival))
                     {
                         Utility.drawWithShadow(e.SpriteBatch, Game1.mouseCursors, new Vector2(clickableTextureComponent.bounds.X + 12, (float)(clickableTextureComponent.bounds.Y + 60) - Game1.dialogueButtonScale / 2f), new Rectangle(346, 392, 8, 8), value.GetEventOfType(BillboardEventType.PassiveFestival).locked ? (Color.Black * 0.3f) : Color.White, 0f, Vector2.Zero, 4f, flipped: false, 1f);
@@ -378,9 +318,8 @@ namespace ShowBirthdays
                     IClickableMenu.drawTextureBox(e.SpriteBatch, Game1.mouseCursors, new Rectangle(379, 357, 3, 3), clickableTextureComponent.bounds.X - num, clickableTextureComponent.bounds.Y - num, clickableTextureComponent.bounds.Width + num * 2, clickableTextureComponent.bounds.Height + num * 2, Color.Blue, 4f, drawShadow: false);
                 }
 
-                // Add the icon texture to the bottom right of the day
+                // Add the multiple birthdays icon texture to the bottom right of the day
                 Vector2 position = new Vector2(days[listOfDays[i] - 1].bounds.Right - offsetX, days[listOfDays[i] - 1].bounds.Bottom - offsetY);
-
                 e.SpriteBatch.Draw(iconTexture, new Rectangle((int)position.X, (int)position.Y, offsetX, offsetY), Color.White);
             }
             
