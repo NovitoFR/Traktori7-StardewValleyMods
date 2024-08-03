@@ -16,7 +16,7 @@ namespace ShowBirthdays
 {
 	class ModEntry : Mod
 	{
-        private Texture2D billboardTexture;
+        private Texture2D? billboardTexture;
 
         private CycleType cycleType;
 		// Flag for if the calendar is open
