@@ -9,13 +9,16 @@ using StardewModdingAPI.Events;
 using StardewModdingAPI.Utilities;
 using StardewValley;
 using StardewValley.Menus;
+using static StardewValley.Menus.Billboard;
 
 
 namespace ShowBirthdays
 {
 	class ModEntry : Mod
 	{
-		private CycleType cycleType;
+        private Texture2D billboardTexture;
+
+        private CycleType cycleType;
 		// Flag for if the calendar is open
 		private bool calendarOpen = false;
 
@@ -35,10 +38,11 @@ namespace ShowBirthdays
 
 		public override void Entry(IModHelper helper)
 		{
-			// Initialize the helper
-			bdHelper = new BirthdayHelper(Monitor, Helper.ModRegistry, Helper.GameContent);
+            // Initialize the helper
+            bdHelper = new BirthdayHelper(Monitor, Helper.ModRegistry, Helper.GameContent);
+            billboardTexture = Game1.temporaryContent.Load<Texture2D>("LooseSprites\\Billboard");
 
-			helper.Events.Content.AssetRequested += OnAssetRequested;
+            helper.Events.Content.AssetRequested += OnAssetRequested;
 			helper.Events.Display.MenuChanged += OnMenuChanged;
 			helper.Events.Display.RenderingActiveMenu += OnRenderingActiveMenu;
 			helper.Events.Display.RenderedActiveMenu += OnRenderedActiveMenu;
@@ -136,13 +140,13 @@ namespace ShowBirthdays
 		{
 			if (!IsCalendarActive(e.NewMenu))
 			{
-				return;
+                return;
 			}
 
 			bdHelper.RecheckBirthdays();
 
 			// List of all the birthday days for the season
-			List<int> list = bdHelper.GetDays(Game1.currentSeason);
+			List<int> list = bdHelper.GetDays(Game1.season);
 
 			// Get the calendar's days since the menu is quaranteed to be the calendar
 			Billboard billboard = (e.NewMenu as Billboard)!;
@@ -160,19 +164,19 @@ namespace ShowBirthdays
 				// Adding the festival to the hovertext bypasses using the label as the hovertext and would allow a festival + birthday combo.
 				// How to handle potential birthday + festival combos? Don't add the festival as a hover text if there's no birthday?
 				// Would need a custom implementation for the graphic if they overlap. Which isn't actually a bad idea.
-				if (Utility.isFestivalDay(i, Game1.currentSeason))
+				if (Utility.isFestivalDay(i, Game1.season))
 				{
 					// Festival name hover text from base game
 					newHoverText = Game1.temporaryContent.Load<Dictionary<string, string>>($"Data\\Festivals\\{Game1.currentSeason}{i}")["name"];
 				}
-				else if (Game1.currentSeason.Equals("winter") && i >= 15 && i <= 17)
+				else if (Game1.season == Season.Winter && i >= 15 && i <= 17)
 				{
 					// Night Market hover text from base game
 					newHoverText = Game1.content.LoadString("Strings\\UI:Billboard_NightMarket");
 				}
 
 				// Get the list of all NPCs with the birthday and add them to the hover text
-				List<NPC>? listOfNPCs = bdHelper.GetNpcs(Game1.currentSeason, i);
+				List<NPC>? listOfNPCs = bdHelper.GetNpcs(Game1.season, i);
 
 				if (listOfNPCs is not null)
 				{
@@ -198,34 +202,33 @@ namespace ShowBirthdays
 				}
 				else
 				{
-					// If there was no birthday, reset the hover text incase a festival name was added
-					newHoverText = string.Empty;
+                    // If there was no birthday, reset the hover text incase a festival name was added
+                    newHoverText = string.Empty;
 				}
 
-				// Get a refrence to the list of weddings
-				IReflectedField<Dictionary<ClickableTextureComponent, List<string>>> weddings = Helper.Reflection.GetField<Dictionary<ClickableTextureComponent, List<string>>>(billboard, "_upcomingWeddings");
+				//// Get a refrence to the list of weddings
+				//IReflectedField<Dictionary<ClickableTextureComponent, List<string>>> weddings = Helper.Reflection.GetField<Dictionary<ClickableTextureComponent, List<string>>>(billboard, "_upcomingWeddings");
 
-				// Wedding text from base game
-				if (weddings.GetValue().ContainsKey(days[i - 1]))
-				{
-					for (int j = 0; j < weddings.GetValue().Count / 2; j++)
-					{
-						if (newHoverText.Length > 0)
-						{
-							newHoverText += Environment.NewLine;
-						}
+				//// Wedding text from base game
+				//if (weddings.GetValue().ContainsKey(days[i - 1]))
+				//{
+				//	for (int j = 0; j < weddings.GetValue().Count / 2; j++)
+				//	{
+				//		if (newHoverText.Length > 0)
+				//		{
+				//			newHoverText += Environment.NewLine;
+				//		}
 
-						newHoverText += Game1.content.LoadString("Strings\\UI:Calendar_Wedding", weddings.GetValue()[days[i - 1]][j * 2], weddings.GetValue()[days[i - 1]][j * 2 + 1]);
-					}
-				}
+				//		newHoverText += Game1.content.LoadString("Strings\\UI:Calendar_Wedding", weddings.GetValue()[days[i - 1]][j * 2], weddings.GetValue()[days[i - 1]][j * 2 + 1]);
+				//	}
+				//}
 
 				days[i - 1].hoverText = newHoverText.Trim();
-
 
 				// Add the NPC textures
 				if (list.Contains(i))
 				{
-					days[i - 1].texture = bdHelper.GetSprite(Game1.currentSeason, i, false);
+					days[i - 1].texture = bdHelper.GetSprite(Game1.season, i, false);
 				}
 			}
 		}
@@ -243,7 +246,7 @@ namespace ShowBirthdays
 				currentCycle++;
 
 			// Get birthday days that are shared
-			List<int> listOfDays = bdHelper.GetDays(Game1.currentSeason, true);
+			List<int> listOfDays = bdHelper.GetDays(Game1.season, true);
 
 			if (listOfDays.Count == 0)
 				return;
@@ -252,7 +255,7 @@ namespace ShowBirthdays
 			Billboard billboard = (Game1.activeClickableMenu as Billboard)!;
 			List<ClickableTextureComponent> days = billboard.calendarDays;
 
-			switch (cycleType)
+            switch (cycleType)
 			{
 				case CycleType.Always:
 					if (currentCycle >= config.cycleDuration)
@@ -261,8 +264,8 @@ namespace ShowBirthdays
 						{
 							try
 							{
-								days[listOfDays[i] - 1].texture = bdHelper.GetSprite(Game1.currentSeason, listOfDays[i], true);
-							}
+								days[listOfDays[i] - 1].texture = bdHelper.GetSprite(Game1.season, listOfDays[i], true);
+                            }
 							catch (Exception ex)
 							{
 								Monitor.Log("There was a problem with parsing the birthday data", LogLevel.Error);
@@ -281,7 +284,7 @@ namespace ShowBirthdays
 						{
 							if (days[listOfDays[i] - 1].containsPoint((int)cursorPos.X, (int)cursorPos.Y))
 							{
-								days[listOfDays[i] - 1].texture = bdHelper.GetSprite(Game1.currentSeason, listOfDays[i], true);
+								days[listOfDays[i] - 1].texture = bdHelper.GetSprite(Game1.season, listOfDays[i], true);
 							}
 						}
 
@@ -292,7 +295,7 @@ namespace ShowBirthdays
 				case CycleType.Click:
 					if (clickedDay != -1 && listOfDays.Contains(clickedDay))
 					{
-						days[clickedDay - 1].texture = bdHelper.GetSprite(Game1.currentSeason, clickedDay, true);
+						days[clickedDay - 1].texture = bdHelper.GetSprite(Game1.season, clickedDay, true);
 						clickedDay = -1;
 					}
 					break;
@@ -313,7 +316,7 @@ namespace ShowBirthdays
 				return;
 
 			// Get birthday days that are shared
-			List<int> listOfDays = bdHelper.GetDays(Game1.currentSeason, true);
+			List<int> listOfDays = bdHelper.GetDays(Game1.season , true);
 
 			if (listOfDays.Count == 0)
 				return;
@@ -327,14 +330,62 @@ namespace ShowBirthdays
 
 			for (int i = 0; i < listOfDays.Count; i++)
 			{
-				// Add the icon texture to the bottom right of the day
-				Vector2 position = new Vector2(days[listOfDays[i] - 1].bounds.Right - offsetX, days[listOfDays[i] - 1].bounds.Bottom - offsetY);
+                ClickableTextureComponent clickableTextureComponent = days[listOfDays[i] - 1];
 
-				e.SpriteBatch.Draw(iconTexture, new Rectangle((int)position.X, (int)position.Y, offsetX, offsetY), Color.White);
-			}
+                e.SpriteBatch.Draw(Game1.fadeToBlackRect, clickableTextureComponent.bounds, Color.Black);
+                e.SpriteBatch.Draw(billboardTexture, clickableTextureComponent.bounds, new Rectangle(38 + (listOfDays[i] - 1) % 7 * 32, 248 + (listOfDays[i] - 1) / 7 * 32, 31, 31), Color.White);
 
-			// Redraw the cursor
-			billboard.drawMouse(e.SpriteBatch);
+                if (billboard.calendarDayData.TryGetValue(clickableTextureComponent.myID, out var value))
+                {
+                    if (days[listOfDays[i] - 1].texture != null && value.Texture != null)
+                    {
+                        e.SpriteBatch.Draw(days[listOfDays[i] - 1].texture, new Vector2(clickableTextureComponent.bounds.X + 48, clickableTextureComponent.bounds.Y + 28), value.TextureSourceRect, Color.White, 0f, Vector2.Zero, 4f, SpriteEffects.None, 1f);
+                    }
+
+                    if (value.Type.HasFlag(BillboardEventType.PassiveFestival))
+                    {
+                        Utility.drawWithShadow(e.SpriteBatch, Game1.mouseCursors, new Vector2(clickableTextureComponent.bounds.X + 12, (float)(clickableTextureComponent.bounds.Y + 60) - Game1.dialogueButtonScale / 2f), new Rectangle(346, 392, 8, 8), value.GetEventOfType(BillboardEventType.PassiveFestival).locked ? (Color.Black * 0.3f) : Color.White, 0f, Vector2.Zero, 4f, flipped: false, 1f);
+                    }
+
+                    if (value.Type.HasFlag(BillboardEventType.Festival))
+                    {
+                        Utility.drawWithShadow(e.SpriteBatch, billboardTexture, new Vector2(clickableTextureComponent.bounds.X + 40, (float)(clickableTextureComponent.bounds.Y + 56) - Game1.dialogueButtonScale / 2f), new Rectangle(1 + (int)(Game1.currentGameTime.TotalGameTime.TotalMilliseconds % 600.0 / 100.0) * 14, 398, 14, 12), Color.White, 0f, Vector2.Zero, 4f, flipped: false, 1f);
+                    }
+
+                    if (value.Type.HasFlag(BillboardEventType.FishingDerby))
+                    {
+                        Utility.drawWithShadow(e.SpriteBatch, Game1.mouseCursors_1_6, new Vector2(days[listOfDays[i] - 1].bounds.X + 8, (float)(days[listOfDays[i] - 1].bounds.Y + 60) - Game1.dialogueButtonScale / 2f), new Rectangle(103, 2, 10, 11), Color.White, 0f, Vector2.Zero, 4f, flipped: false, 1f);
+                    }
+
+                    if (value.Type.HasFlag(BillboardEventType.Wedding))
+                    {
+                        e.SpriteBatch.Draw(Game1.mouseCursors2, new Vector2(clickableTextureComponent.bounds.Right - 56, clickableTextureComponent.bounds.Top - 12), new Rectangle(112, 32, 16, 14), Color.White, 0f, Vector2.Zero, 4f, SpriteEffects.None, 1f);
+                    }
+
+                    if (value.Type.HasFlag(BillboardEventType.Bookseller))
+                    {
+                        e.SpriteBatch.Draw(Game1.mouseCursors_1_6, new Vector2((float)(clickableTextureComponent.bounds.Right - 72) - 2f * (float)Math.Sin((Game1.currentGameTime.TotalGameTime.TotalSeconds + (double)(listOfDays[i] - 1) * 0.3) * 3.0), (float)(clickableTextureComponent.bounds.Top + 52) - 2f * (float)Math.Cos((Game1.currentGameTime.TotalGameTime.TotalSeconds + (double)(listOfDays[i] - 1) * 0.3) * 2.0)), new Rectangle(71, 63, 8, 15), Color.White, 0f, Vector2.Zero, 4f, SpriteEffects.None, 1f);
+                    }
+                }
+
+                if (Game1.dayOfMonth > (listOfDays[i] - 1) + 1)
+                {
+                    e.SpriteBatch.Draw(Game1.staminaRect, clickableTextureComponent.bounds, Color.Gray * 0.25f);
+                }
+                else if (Game1.dayOfMonth == (listOfDays[i] - 1) + 1)
+                {
+                    int num = (int)(4f * Game1.dialogueButtonScale / 8f);
+                    IClickableMenu.drawTextureBox(e.SpriteBatch, Game1.mouseCursors, new Rectangle(379, 357, 3, 3), clickableTextureComponent.bounds.X - num, clickableTextureComponent.bounds.Y - num, clickableTextureComponent.bounds.Width + num * 2, clickableTextureComponent.bounds.Height + num * 2, Color.Blue, 4f, drawShadow: false);
+                }
+
+                // Add the icon texture to the bottom right of the day
+                Vector2 position = new Vector2(days[listOfDays[i] - 1].bounds.Right - offsetX, days[listOfDays[i] - 1].bounds.Bottom - offsetY);
+
+                e.SpriteBatch.Draw(iconTexture, new Rectangle((int)position.X, (int)position.Y, offsetX, offsetY), Color.White);
+            }
+            
+            // Redraw the cursor
+            billboard.drawMouse(e.SpriteBatch);
 
 			// The current hover text is stored in the billboard itself
 			string text = Helper.Reflection.GetField<string>(billboard, "hoverText").GetValue();

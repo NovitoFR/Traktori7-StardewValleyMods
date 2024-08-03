@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Microsoft.Xna.Framework.Graphics;
 using StardewModdingAPI;
 using StardewValley;
+using StardewValley.GameData.Characters;
 
 
 namespace ShowBirthdays
@@ -66,7 +67,7 @@ namespace ShowBirthdays
 			foreach (NPC n in Utility.getAllCharacters())
 			{
 				// Checking for 0 should eliminate a lot of the non-friendable NPCs, needs verification
-				if (n.isVillager() && n.Birthday_Day > 0 && n.Birthday_Season is not null)
+				if (n.IsVillager && n.Birthday_Day > 0 && n.Birthday_Season is not null)
 				{
 					// It returns 1-4 for the base game seasons, and -1 if there were no matches
 					if (Utility.getSeasonNumber(n.Birthday_Season) == -1)
@@ -101,15 +102,16 @@ namespace ShowBirthdays
 						}
 					}
 
-					// This check needs further testing, especially with custom npcs
-					if (!n.CanSocialize && !Game1.player.friendshipData.ContainsKey(n.Name))
-					{
-						hideBirthday = true;
-					}
+                    CalendarBehavior? calendarBehavior = n.GetData()?.Calendar;
+                    if (calendarBehavior == CalendarBehavior.HiddenAlways || (calendarBehavior == CalendarBehavior.HiddenUntilMet && !Game1.player.friendshipData.ContainsKey(n.Name)))
+                    {
+                        hideBirthday = true;
+                    }
 
 					if (!hideBirthday)
 					{
-						AddBirthday(n.Birthday_Season, n.Birthday_Day, n);
+						Utility.TryParseEnum<Season>(n.Birthday_Season, out var parsedSeason);
+                        AddBirthday(parsedSeason, n.Birthday_Day, n);
 					}
 					else
 					{
@@ -133,13 +135,13 @@ namespace ShowBirthdays
 		/// <summary>
 		/// Adds birthday and the NPC to the correct list
 		/// </summary>
-		internal void AddBirthday(string season, int birthday, NPC n)
+		internal void AddBirthday(Season season, int birthday, NPC n)
 		{
 			List<Birthday>? list = GetListOfBirthdays(season);
 
 			if (list is null)
 			{
-				monitor.Log($"Failed to add birthday {season} {birthday} for {n.Name}", LogLevel.Error);
+				monitor.Log($"Failed to add birthday {Utility.getSeasonKey(season)} {birthday} for {n.Name}", LogLevel.Error);
 				return;
 			}
 
@@ -167,7 +169,7 @@ namespace ShowBirthdays
 		/// <param name="season">Wanted season</param>
 		/// <param name="onlyShared">Return only shared birthday days</param>
 		/// <returns></returns>
-		internal List<int> GetDays(string season, bool onlyShared = false)
+		internal List<int> GetDays(Season season, bool onlyShared = false)
 		{
 			List<Birthday>? list = GetListOfBirthdays(season);
 
@@ -189,7 +191,7 @@ namespace ShowBirthdays
 		/// <summary>
 		/// Returns the list of NPCs that have the given birthday. Returns null if no NPC matches the date.
 		/// </summary>
-		internal List<NPC>? GetNpcs(string season, int day)
+		internal List<NPC>? GetNpcs(Season season, int day)
 		{
 			Birthday? birthday = GetBirthday(season, day);
 
@@ -203,7 +205,7 @@ namespace ShowBirthdays
 		/// <summary>
 		/// Returns the birthday object if it exists
 		/// </summary>
-		private Birthday? GetBirthday(string season, int day)
+		private Birthday? GetBirthday(Season season, int day)
 		{
 			List<Birthday>? list = GetListOfBirthdays(season);
 
@@ -217,9 +219,9 @@ namespace ShowBirthdays
 		/// <summary>
 		/// Returns the list of Birthdays for the given season. Returns null if such list was not found.
 		/// </summary>
-		private List<Birthday>? GetListOfBirthdays(string season)
+		private List<Birthday>? GetListOfBirthdays(Season season)
 		{
-			int index = Utility.getSeasonNumber(season);
+			int index = (int)season;
 
 			if (index >= 0 && index < birthdays.Length)
 			{
@@ -227,7 +229,7 @@ namespace ShowBirthdays
 			}
 			else
 			{
-				monitor.Log($"Tried to get the list of birthdays for an unknown season {season}.", LogLevel.Error);
+				monitor.Log($"Tried to get the list of birthdays for an unknown season {Utility.getSeasonKey(season)}.", LogLevel.Error);
 				return null;
 			}
 		}
@@ -239,7 +241,7 @@ namespace ShowBirthdays
 		/// <param name="season">Season</param>
 		/// <param name="day">Day</param>
 		/// <param name="nextInCycle">Get next available sprite</param>
-		internal Texture2D? GetSprite(string season, int day, bool nextInCycle)
+		internal Texture2D? GetSprite(Season season, int day, bool nextInCycle)
 		{
 			Birthday? birthday = GetBirthday(season, day);
 

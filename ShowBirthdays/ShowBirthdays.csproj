@@ -3,12 +3,13 @@
 <PropertyGroup>
 	<AssemblyName>ShowBirthdays</AssemblyName>
 	<RootNamespace>ShowBirthdays</RootNamespace>
-	<TargetFramework>net5.0</TargetFramework>
+	<TargetFramework>net6.0</TargetFramework>
 	<Nullable>enable</Nullable>
+	<GamePath>D:\Games\Steam\steamapps\common\Stardew Valley\</GamePath>
 </PropertyGroup>
 
 <ItemGroup>
-	<PackageReference Include="Pathoschild.Stardew.ModBuildConfig" Version="4.0.1" />
+	<PackageReference Include="Pathoschild.Stardew.ModBuildConfig" Version="4.1.1" />
 </ItemGroup>
 
 </Project>
