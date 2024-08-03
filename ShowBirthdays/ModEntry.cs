@@ -248,7 +248,7 @@ namespace ShowBirthdays
 		/// </summary>
 		private void OnRenderedActiveMenu(object? sender, RenderedActiveMenuEventArgs e)
 		{
-			if (!config.showIcon || !IsCalendarActive(Game1.activeClickableMenu) || iconTexture is null)
+			if (!IsCalendarActive(Game1.activeClickableMenu) || iconTexture is null || billboardTexture is null)
 				return;
 
 			// Get birthday days that are shared
@@ -318,9 +318,12 @@ namespace ShowBirthdays
                     IClickableMenu.drawTextureBox(e.SpriteBatch, Game1.mouseCursors, new Rectangle(379, 357, 3, 3), clickableTextureComponent.bounds.X - num, clickableTextureComponent.bounds.Y - num, clickableTextureComponent.bounds.Width + num * 2, clickableTextureComponent.bounds.Height + num * 2, Color.Blue, 4f, drawShadow: false);
                 }
 
-                // Add the multiple birthdays icon texture to the bottom right of the day
-                Vector2 position = new Vector2(days[listOfDays[i] - 1].bounds.Right - offsetX, days[listOfDays[i] - 1].bounds.Bottom - offsetY);
-                e.SpriteBatch.Draw(iconTexture, new Rectangle((int)position.X, (int)position.Y, offsetX, offsetY), Color.White);
+				if(config.showIcon)
+				{
+                    // Add the multiple birthdays icon texture to the bottom right of the day
+                    Vector2 position = new Vector2(days[listOfDays[i] - 1].bounds.Right - offsetX, days[listOfDays[i] - 1].bounds.Bottom - offsetY);
+                    e.SpriteBatch.Draw(iconTexture, new Rectangle((int)position.X, (int)position.Y, offsetX, offsetY), Color.White);
+                }
             }
             
             // Redraw the cursor
